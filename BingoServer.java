@@ -1,208 +1,351 @@
 package Bingo;
 
+//classes of JAVA
 import java.io.*;
 import java.net.*;
 import java.util.*;
 
-
+/**
+ * This class is for managing the threads of each client and broadcast the messages.
+ * 
+ */
 public class BingoServer {
-	public static final int PORT = 8742;
-	ServerSocket ss;
-	Socket sock;
-	Vector v;
+	
+	//the int type value of port number
+	public static final int PORT = 8743;
+	
+	ServerSocket serverSocket;
+	Socket socket;
+	Vector vector;
 
+	
+	/**
+	 * Open a server socket, client sockets and create each thread.
+	 */
 	public void startServer() {
 		try {
-			ss = new ServerSocket(PORT);
-			v = new Vector();
+			serverSocket = new ServerSocket(PORT);
+			vector = new Vector();
 
 			while (true) {
-				sock = ss.accept();
-				BingoThread bi = new BingoThread(this, sock);
-				this.addThread(bi);
-				bi.start();
+				socket = serverSocket.accept();
+				BingoThread bingoThread = new BingoThread(this, socket);
+				this.addThread(bingoThread);
+				bingoThread.start();
 			}
+			
 		} catch (Exception e) {
 			e.printStackTrace();
+			
 		} finally {
 			try {
-				sock.close();
-				ss.close();
+				socket.close();
+				serverSocket.close();
+				
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
+		
 	}
 
-	public void addThread(BingoThread bi) {
-		v.add(bi);
+	
+	/**
+	 * Add a bingo thread to the vector.
+	 * 
+	 * @param bingoThread
+	 */
+	public void addThread(BingoThread bingoThread) {
+		vector.add(bingoThread);
 	}
 
-	public void remove(BingoThread bi) {
-		v.remove(bi);
+	
+	/**
+	 * Remove the bingo thread in the vector.
+	 * 
+	 * @param bingoThread
+	 */
+	public void removeThread(BingoThread bingoThread) {
+		vector.remove(bingoThread);
 	}
 
-	public BingoThread getOT(int i) {
-		return (BingoThread) v.elementAt(i);
+	
+	/**
+	 * Get a i-th bingo thread in the vector.
+	 * 
+	 * @param i
+	 * @return i-th element
+	 */
+	public BingoThread getElement(int i) {
+		return (BingoThread)vector.elementAt(i);
 	}
 
-	public int getRoomNumber1(int i) {  //i번째 있는 클라이언트 방 넘버 리턴
-		return getOT(i).getRoomNumber();
+	
+	/**
+	 * Get the room number of the i-th element.
+	 * 
+	 * @param i
+	 * @return i-th element's room number
+	 */
+	public int getRoomNumber1(int i) { 
+		return getElement(i).getRoomNumber();
 	}
 
+	
+	/**
+	 * Broadcast a message to another client in the same room.
+	 * 
+	 * @param RoomNumber
+	 * @param message
+	 */
+	public void broadCast(int RoomNumber, String message) {
+		for (int i = 0; i < vector.size(); i++) {
+			if (RoomNumber == getRoomNumber1(i)) {
+				BingoThread tempThread = getElement(i);
+				tempThread.send(message);
+			}
+		}
+	}
+	
+	
 	public static void main(String args[]) {
 		BingoServer server = new BingoServer();
 		server.startServer();
 	}
 	
-	public void broadCast(int RoomNumber, String str) {  //자신이 들어간 방에 있는 클라이언트에게만 메세지 전송
-		for (int i = 0; i < v.size(); i++) {
-			if (RoomNumber == getRoomNumber1(i)) {
-				BingoThread BI = getOT(i);
-				BI.send(str);
-			}
-		}
-	}
 }
 
+
+/**
+ * This class is for performing actions within the program.
+ *
+ */
 class BingoThread extends Thread {
-	Socket socket1;
+
+	//Store every name of clients
+	static String[] nameArray = new String[8];
+	
+	//Index of nameArray
+	static int nameCount = 0;
+	
+	int roomNumber = 0;
+
+	BingoServer bingoServer;
 	BufferedReader reader;
 	PrintWriter writer;
-	BingoServer cg2;
-	String currentNumber;
+	Socket socket;
+	
+	String receivedMessage;
 	String name;
-	int roomNumber = 0;
-	static String[] nameArray = new String[8];
-	static int nameCount = 0;
 
-	public BingoThread(BingoServer cg1, Socket socket) {
-		this.cg2 = cg1;
-		this.socket1 = socket;
+	
+	/**
+	 * Create reader and writer for server and socket.
+	 * 
+	 * @param bingoServer1
+	 * @param socket1
+	 */
+	public BingoThread(BingoServer bingoServer1, Socket socket1) {
+		this.bingoServer = bingoServer1;
+		this.socket = socket1;
+		
 		try {
-			reader = new BufferedReader(new InputStreamReader(socket1.getInputStream()));
-			writer = new PrintWriter(socket1.getOutputStream(), true);
+			reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			writer = new PrintWriter(socket.getOutputStream(), true);
+			
 		} catch (Exception e) {
 			System.out.println(e);
 		}
+		
 	}
 
-	public void send(String currentNumber) { //메세지 클라이언트한테 보내기
-		writer.println(currentNumber);
+	
+	/**
+	 * Send a message to client.
+	 * 
+	 * @param message
+	 */
+	public void send(String message) { 
+		writer.println(message);
 		writer.flush();
 	}
 
+	
+	/**
+	 * Get a room number.
+	 * 
+	 * @return room number
+	 */
 	public int getRoomNumber() {
 		return roomNumber;
 	}
 
-	public int roomUserCount(int roomNumber) { //방에 들어간 유저 수 
+	
+	/**
+	 * Count the number of user in the room.
+	 * 
+	 * @param roomNumber
+	 * @return
+	 */
+	public int roomUserCount(int roomNumber) { 
 		int count = 0;
-		for(int i=0; i<cg2.v.size(); i++) {
-			if(roomNumber == cg2.getRoomNumber1(i)) {
+		
+		for(int i = 0; i < bingoServer.vector.size(); i++) {
+			if(roomNumber == bingoServer.getRoomNumber1(i)) {
 				count++;
 			}
 		}
+		
 		return count;
 	}
-	boolean roomFull(int roomNumber) { //방이 가득찼는지 안찼는지
-		int count1 = roomUserCount(roomNumber);
-		
-		if(count1>=2) {
-			return true;
-		}
-		writer.println("isPlay");    //방에 먼저 들어온 사람이 선공
-		writer.flush(); 
-		return false;
+	
+	
+	/**
+	 * Check if the room is full and set the client who came in first as the first player.
+	 * 
+	 * @param roomNumber
+	 * @return boolean value of full status
+	 */
+	boolean isRoomFull(int roomNumber) {      
+	      int count1 = roomUserCount(roomNumber);
+	      
+	      if(count1 == 2) {
+	         return true;
+	      }
+	      
+	      if(count1 == 0 ) {
+	    	  writer.println("isPlay");
+	    	  writer.flush();
+	      }
+	      
+	      return false;
 	}
-	public static boolean compare_name(String newName) { // 새로운 name이 올때 nameArray에 있는지 판단.
-	    for (String eachName : nameArray) {
-	       if (newName.equals(eachName))
+	
+	
+	/**
+	 * Check if the name is duplicated.
+	 * 
+	 * @param newName
+	 * @return boolean value of duplicate status
+	 */
+	public static boolean isNameDuplicate(String newName) {    
+		for (String eachName : nameArray) {
+	       if (newName.equals(eachName)) {
 	          return true;
+	       }
 	    }
+	    
 	    return false;
 	}
 	
+	
+	/**
+	 * Check the received message then give it to the correct protocol.
+	 */
 	@Override
 	public void run() {
-		try {
-			
-			while ((currentNumber = reader.readLine()) != null) {
-				if (currentNumber.startsWith("Room")) {
+		try {			
+			while ((receivedMessage = reader.readLine()) != null) {
+				
+				//If the protocol is "ROOM", then check if the room is full.
+				if (receivedMessage.startsWith("ROOM")) {
+					int roomNum = Integer.parseInt(receivedMessage.substring(4));
 					
-					int roomNum = Integer.parseInt(currentNumber.substring(4));
-					if(!roomFull(roomNum)){
+					if(!isRoomFull(roomNum)) {
 						roomNumber = roomNum;
-
-						writer.println("OK" + roomNumber); // 방에 가득 찬게 아니면 OK 프로토콜 클라이언트 방에 참가
-						cg2.broadCast(roomNumber, "count" + roomUserCount(roomNumber)); //들어간 방에 몇명있는지 count 프로토콜
-					}
-					else {
-						writer.println("FULL" + roomNumber); //방에 가득차면 full 프로토콜로 FULL 메세지 보내기
-					}
-				}
-				
-
-				else if (currentNumber.startsWith("MSG")) { //MSG 프로토콜이면 방에 있는 유저들에게 메세지 보내기
-					cg2.broadCast(roomNumber, "MSG[" + name + "]: " + currentNumber.substring(3));
-				}
-				else if (currentNumber.startsWith("Judge")) {
-					cg2.broadCast(roomNumber, currentNumber);
-				}
-				else if (currentNumber.startsWith("Score")) {
-					if (Integer.parseInt(currentNumber.substring(5))>=3) {
-						cg2.broadCast(roomNumber, "Draw");
+						writer.println("OK" + roomNumber);	//If the room is not full, then send the message with OK protocol.
+						bingoServer.broadCast(roomNumber, "COUNT" + roomUserCount(roomNumber));		//Broadcast the number of client in the room.
+					
 					} else {
-						cg2.broadCast(roomNumber, "reset");
+						writer.println("FULL" + roomNumber);	//If the room is full, then send the message with FULL protocol.
+					}
+				} 
+				
+				//If the protocol is "MESSAGE", then broadcast the message to clients.
+				else if (receivedMessage.startsWith("MESSAGE")) {
+					bingoServer.broadCast(roomNumber, "MESSAGE[" + name + "]: " + receivedMessage.substring(7));
+				}
+				
+				//If the protocol is "JUDGE", then broadcast the message to request client's score. 
+				else if (receivedMessage.startsWith("JUDGE")) { 
+					bingoServer.broadCast(roomNumber, receivedMessage);
+				} 
+				
+				//If the protocol is "SCORE", then broadcast the result of judging to clients. 
+				else if (receivedMessage.startsWith("SCORE")) {
+					if (Integer.parseInt(receivedMessage.substring(5)) >= 3) {
+						bingoServer.broadCast(roomNumber, "DRAW");
+					} else {
+						bingoServer.broadCast(roomNumber, "RESET");
 					}
 				}
 				
-				else if (currentNumber.startsWith("Name")) { //Name 프로토콜이면 클라 이름 저장 후 방에 유저 입장 보내기
-					name = currentNumber.substring(4);
-					if (compare_name(name)) { //중복여부 판단
-						cg2.broadCast(roomNumber, "Rename"); //중복이면 Rename 보냄
-					} else { //아니면 클라 이름 저장 후 방에 유저 입장 보내기
-						cg2.broadCast(roomNumber, "Name[" + name + "]" + "님이 입장했습니다.");
+				//If the protocol is "NAME", then check for duplication and store the name. 
+				else if (receivedMessage.startsWith("NAME")) {
+					name = receivedMessage.substring(4);
+					
+					if (isNameDuplicate(name)) {
+						bingoServer.broadCast(roomNumber, "RENAME"); 
+						
+					} else {
+						bingoServer.broadCast(roomNumber, "NAME[" + name + "]" + "님이 입장했습니다.");
+						
 						try {
 							nameArray[nameCount] = name;
 							nameCount += 1;
 						} catch (Exception e) {
-							nameArray[7] = name;
+							for (int i = 0; i<8; i++) {
+								if (nameArray[i].equals("")) {
+									nameArray[i] = name;
+									break;
+								}
+							}
 						}
 					}
-				}
-
-				else if (currentNumber.startsWith("reset")) { //reset 프로토콜이면 방에 있는 유저 모두 reset
-					cg2.broadCast(roomNumber, currentNumber);
-				}
-				else { // 빙고 프로토콜로 온 메세지를 다른 클라한테 넘기기.
-					cg2.broadCast(roomNumber, currentNumber);
+				} 
+				
+				//If the protocol is "RESET", then reset client's score. 
+				else if (receivedMessage.startsWith("RESET")) { 
+					bingoServer.broadCast(roomNumber, receivedMessage);
+				} 
+				
+				//Broadcast the bingo message to another client. 
+				else {
+					bingoServer.broadCast(roomNumber, receivedMessage);
 				}
 			}
+			
 		} catch (Exception e) {
-		}finally {
-		try {
-			cg2.remove(this);
-			if (this.name == null) {
-				cg2.broadCast(roomNumber,"exit[익명]" + "님이 퇴장했습니다."); //상대방이 중간에 나가면 exit 프로토콜 붙여서 보내기
-				cg2.broadCast(roomNumber,"exit남은 인원: " +  roomUserCount(roomNumber));
-				for (int i = 0; i<8; i++) {
-				       if (this.name.equals(nameArray[i]))
-				          nameArray[i] = "";
-				}
-			}
-			else {
-			cg2.broadCast(roomNumber, "exit[" + name + "]" + "님이 퇴장했습니다.");
-			cg2.broadCast(roomNumber, "exit남은 인원: " +  roomUserCount(roomNumber));
-			for (int i = 0; i<8; i++) {
-			       if (this.name.equals(nameArray[i]))
-			          nameArray[i] = "";
-			}
-			}
-				socket1.close();
+			
+		} finally {
+			try {
+				bingoServer.removeThread(this);
+				
+				//If a client is out, then broadcast client's name and reduce the number of total client. 
+				if (this.name == null) { 
+					bingoServer.broadCast(roomNumber,"EXIT[익명]" + "님이 퇴장했습니다."); //
+					bingoServer.broadCast(roomNumber,"MESSAGE남은 인원: " +  roomUserCount(roomNumber)); // Sending the remaining number using the MESSAGE protocol
+					
+					for (int i = 0; i < 8; i++) {
+					       if (this.name.equals(nameArray[i]))
+					          nameArray[i] = "";
+					}
+					
+				} else {
+					bingoServer.broadCast(roomNumber, "EXIT[" + name + "]" + "님이 퇴장했습니다.");
+					bingoServer.broadCast(roomNumber, "MESSAGE남은 인원: " +  roomUserCount(roomNumber));
+					
+					for (int i = 0; i < 8; i++) {
+					       if (this.name.equals(nameArray[i]))
+					          nameArray[i] = "";
+					}
+				}	
+				socket.close();
 				reader.close();
 				writer.close();
+				
 			} catch (Exception e1) {
+				
 			}
 		}
 	}
