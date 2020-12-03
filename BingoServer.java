@@ -304,13 +304,8 @@ class BingoThread extends Thread {
 					}
 				} 
 				
-				//If the protocol is "RESET", then reset client's score. 
-				else if (receivedMessage.startsWith("RESET")) { 
-					bingoServer.broadCast(roomNumber, receivedMessage);
-				} 
-				
-				//Broadcast the bingo message to another client. 
-				else {
+				//If the protocol is "BINGO", then Broadcast to clients. 
+				else if (receivedMessage.startsWith("BINGO")) {
 					bingoServer.broadCast(roomNumber, receivedMessage);
 				}
 			}
@@ -325,11 +320,6 @@ class BingoThread extends Thread {
 				if (this.name == null) { 
 					bingoServer.broadCast(roomNumber,"EXIT[익명]" + "님이 퇴장했습니다."); //
 					bingoServer.broadCast(roomNumber,"MESSAGE남은 인원: " +  roomUserCount(roomNumber)); // Sending the remaining number using the MESSAGE protocol
-					
-					for (int i = 0; i < 8; i++) {
-					       if (this.name.equals(nameArray[i]))
-					          nameArray[i] = "";
-					}
 					
 				} else {
 					bingoServer.broadCast(roomNumber, "EXIT[" + name + "]" + "님이 퇴장했습니다.");

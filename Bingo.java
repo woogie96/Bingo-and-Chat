@@ -201,11 +201,13 @@ public class Bingo extends JFrame implements Runnable, ActionListener {
 	 */
 	@Override
 	public void run() {
+		String voidDuplication = "";
 		try {
 			while ((receivedMessage = reader.readLine()) != null) {
 
 				//If the protocol is "OK", then float the game&chat window.
 				if(receivedMessage.startsWith("OK")) {
+					voidDuplication = receivedMessage;
 					roomNumber = Integer.parseInt(receivedMessage.substring(2));
 					
 					gameFrame = new JFrame(roomNumber + "번 방 Bingo");
@@ -229,28 +231,25 @@ public class Bingo extends JFrame implements Runnable, ActionListener {
 				
 				//If the protocol is "COUNT" and there are two people in the room, then start game&chat.
 				else if(receivedMessage.startsWith("COUNT")) {
+					voidDuplication = receivedMessage;
 		               int count = Integer.parseInt(receivedMessage.substring(5));
 		               
 		               textArea.append("현재 " + roomNumber + " 번 방 인원: " + count + "명\n");
 		               
-		               if(count < 2) {
-		                  textField.setEnabled(false);
-		                  
-		                  for (int i = 0; i < 5; i++) {
+		               for (int i = 0; i < 5; i++) {
 		                     for (int j = 0; j < 5; j++) {
 		                        bingoButten[i][j].setEnabled(false);
 		                     }
 		                  }
+		               
+		               if(count < 2) {
+		                  textField.setEnabled(false);
+		                
 		               }
 		               
 		               if(count == 2) { 
 		                  textField.setEnabled(true);
 		                  
-		                  for (int i = 0; i < 5; i++) {
-		                     for (int j = 0; j < 5; j++) {
-		                        bingoButten[i][j].setEnabled(true);
-		                     }
-		                  }
 		                  if(userName==null) {
 		                	  textArea.append("사용할 이름을 입력하세요\n");
 		                  }
@@ -259,22 +258,26 @@ public class Bingo extends JFrame implements Runnable, ActionListener {
 				
 				//If the protocol is "FULL", then alert the message that the room is full.
 				else if(receivedMessage.startsWith("FULL")) { 
+					voidDuplication = receivedMessage;
 					JOptionPane.showMessageDialog(null, roomNum + "번 방 FULL!", "full", JOptionPane.PLAIN_MESSAGE);
 				} 
 
 				//If the protocol is "MESSAGE", then show the message.
 				else if (receivedMessage.startsWith("MESSAGE")) { 
+					voidDuplication = receivedMessage;
 					textArea.append(receivedMessage.substring(7) + "\n");
 					textArea.setCaretPosition(textArea.getDocument().getLength());
 				} 
 
 				//If the protocol is "isPlay", then set the client who came in first as the first player.
 				else if (receivedMessage.startsWith("isPlay")) { 
+					voidDuplication = receivedMessage;
 					isPlay = true;
 				}
 				
 				//If the protocol is "JUDGE", then send the message with SCORE protocol to decide whether win or lose.
 				else if (receivedMessage.startsWith("JUDGE")) {
+					voidDuplication = receivedMessage;
 					if (!receivedMessage.substring(5).equals(Boolean.toString(isPlay))) {
 						writer.println("SCORE" + Integer.toString(getBingLine()));
 					}
@@ -282,6 +285,7 @@ public class Bingo extends JFrame implements Runnable, ActionListener {
 
 				//If the protocol is "NAME", then store the name and show it.
 				else if (receivedMessage.startsWith("NAME")) { 
+					voidDuplication = receivedMessage;
 					userName = string;
 					textArea.append(receivedMessage.substring(4) + "\n");
 					nameCount = 0; 
@@ -289,6 +293,7 @@ public class Bingo extends JFrame implements Runnable, ActionListener {
 
 				//If the protocol is "RENAME" and the client came in later, then alert the message for duplicated name.
 				else if (receivedMessage.startsWith("RENAME")) { 
+					voidDuplication = receivedMessage;
 					if (nameCount == 1) { 
 						JOptionPane.showMessageDialog(null, string + " Nickname Duplicated!",
 								"Nickname Duplicated!", JOptionPane.PLAIN_MESSAGE);
@@ -299,7 +304,8 @@ public class Bingo extends JFrame implements Runnable, ActionListener {
 				} 
 
 				//If the protocol is "DRAW", then show the message for draw and change the order the play.
-				else if (receivedMessage.startsWith("DRAW")) {
+				else if (receivedMessage.startsWith("DRAW") && !voidDuplication.startsWith("DRAW")) {
+					voidDuplication = receivedMessage;
 					JOptionPane.showMessageDialog(null, userName + " Draw!", "Draw", JOptionPane.PLAIN_MESSAGE);
 					
 					reset();
@@ -312,7 +318,8 @@ public class Bingo extends JFrame implements Runnable, ActionListener {
 				} 
 
 				//If the protocol is "RESET", then show the message for win or lose and change the order the play to the loser first.
-				else if (receivedMessage.startsWith("RESET")) { 
+				else if (receivedMessage.startsWith("RESET")) {
+					voidDuplication = receivedMessage;
 					if(getBingLine() >= 3) { 
 						JOptionPane.showMessageDialog(null, userName + " Victory!", "Victory", JOptionPane.PLAIN_MESSAGE);
 						reset();
@@ -329,6 +336,7 @@ public class Bingo extends JFrame implements Runnable, ActionListener {
 
 				//If the protocol is "EXIT", then reset bingo board and wait for another client to come in.
 				else if(receivedMessage.startsWith("EXIT")) { 
+					voidDuplication = receivedMessage;
 					textArea.setText("");				
 					reset();
 					
@@ -340,15 +348,15 @@ public class Bingo extends JFrame implements Runnable, ActionListener {
 							bingoButten[i][j].setEnabled(false);
 						}
 					}
-					
 					isPlay=true;
 				}
 				
-				//Mark the selected bingo board.
-				else { 
+				//If the protocol is "EXIT", then mark the selected bingo board.
+				else if(receivedMessage.startsWith("BINGO")) { 
+					voidDuplication = receivedMessage;
 					for (int i = 0; i < 5; i++) {
 						for (int j = 0; j < 5; j++) {
-							if (bingoButten[i][j].getText().equals(receivedMessage)) {
+							if (bingoButten[i][j].getText().equals(receivedMessage.substring(5))) {
 								if (bingoButten[i][j].getBackground() == Color.LIGHT_GRAY) {
 									bingoButten[i][j].setBackground(Color.YELLOW);
 									isPlay = true;
@@ -395,6 +403,11 @@ public class Bingo extends JFrame implements Runnable, ActionListener {
 	        		if(getType(string)) { //Check if the userName condition is correct
 	        		nameCount += 1; 
 	                writer.println("NAME" + string); 
+	                for (int i = 0; i < 5; i++) {
+	                     for (int j = 0; j < 5; j++) {
+	                        bingoButten[i][j].setEnabled(true);
+	                     }
+	                  }
 	        		}
 	        		else {
 	        			textArea.append("2~10길이 문자,숫자로 이루어진 이름을 다시 입력해주세요.\n");
@@ -407,14 +420,14 @@ public class Bingo extends JFrame implements Runnable, ActionListener {
 	        }
 	    } 
 		
-		//If a client press a bingo button, then send it to server.
+		//If a client press a bingo button, then send bingo protocol to server.
 		else if (((JButton) e.getSource()).getBackground() == Color.LIGHT_GRAY && isPlay) {
 			isPlay = false;
 			
 			((JButton) e.getSource()).setBackground(Color.YELLOW); 
 			pressedNumber = ((JButton) e.getSource()).getText(); 
 
-			writer.println(pressedNumber); 
+			writer.println("BINGO" + pressedNumber); 
 		}	
 		
 		//If a client press the already selected bingo button, then alert the re-touch message.
